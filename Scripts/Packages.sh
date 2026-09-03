@@ -74,6 +74,8 @@ if [[ "${WRT_PROFILE^^}" == "PLUS" ]]; then
 	UPDATE_PACKAGE "kenzo" "kenzok8/openwrt-packages" "master" "name"
 	UPDATE_PACKAGE "small" "kenzok8/small" "master"
 	UPDATE_PACKAGE "istore" "linkease/istore" "main"
+	UPDATE_PACKAGE "nas" "linkease/nas-packages" "master" "name"
+	UPDATE_PACKAGE "nas_luci" "linkease/nas-packages-luci" "main" "name"
 fi
 
 #UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
