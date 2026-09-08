@@ -2,62 +2,18 @@ name: Clean up old releases
 
 on:
   #schedule:
-  #  - cron: '0 0 * * *'
+  #  - cron: '0 0 * * *'   # 每天 UTC 0 点
   workflow_dispatch:
 
 jobs:
-  delete-old-releases:
+  clean-releases:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 需要删除 Release 的权限
+      contents: write
     steps:
-      - name: Delete releases older than 2 days
-        uses: actions/github-script@v7
+      - name: Delete older releases, keep latest 4
+        uses: dev-drprasad/delete-older-releases@v0.3
         with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            
-            // 获取所有 Release（包括 pre-release）
-            const { data: releases } = await github.rest.repos.listReleases({
-              owner,
-              repo,
-              per_page: 100  // 如果 Release 很多，考虑分页
-            });
-            
-            // 计算两天前的时间戳
-            const twoDaysAgo = new Date();
-            twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-            
-            // 筛选出创建时间早于两天前的 Release，并按创建时间降序排列
-            const toDelete = releases
-              .filter(r => new Date(r.created_at) < twoDaysAgo)
-              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            
-            // 安全措施：至少保留 1 个最新的 Release（即使它超过两天）
-            // 如果所有 Release 都超过两天，我们保留最新的那一个
-            if (toDelete.length === releases.length) {
-              // 删除除了最新一个之外的所有
-              const latest = releases.reduce((a, b) => new Date(a.created_at) > new Date(b.created_at) ? a : b);
-              const toDeleteWithoutLatest = toDelete.filter(r => r.id !== latest.id);
-              console.log(`所有 Release 都超过两天，保留最新一个 (ID: ${latest.id})，删除其余 ${toDeleteWithoutLatest.length} 个`);
-              for (const release of toDeleteWithoutLatest) {
-                await github.rest.repos.deleteRelease({
-                  owner,
-                  repo,
-                  release_id: release.id
-                });
-                console.log(`已删除 Release: ${release.name || release.tag_name} (ID: ${release.id})`);
-              }
-            } else {
-              // 正常删除所有早于两天的
-              console.log(`找到 ${toDelete.length} 个早于两天的 Release`);
-              for (const release of toDelete) {
-                await github.rest.repos.deleteRelease({
-                  owner,
-                  repo,
-                  release_id: release.id
-                });
-                console.log(`已删除 Release: ${release.name || release.tag_name} (ID: ${release.id})`);
-              }
-            }
+          keep_latest: 4           # 保留最新 4 个 Release（按创建时间排序）
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          # 可选：如果你想保留至少 1 个，但 keep_latest=4 已经保证至少保留 4 个
