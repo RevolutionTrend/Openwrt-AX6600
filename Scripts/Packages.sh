@@ -76,6 +76,7 @@ if [[ "${WRT_PROFILE^^}" == "PLUS" ]]; then
 	UPDATE_PACKAGE "istore" "linkease/istore" "main"
 	UPDATE_PACKAGE "nas" "linkease/nas-packages" "master" "name"
 	UPDATE_PACKAGE "nas_luci" "linkease/nas-packages-luci" "main" "name"
+	UPDATE_PACKAGE "timecontrol" "sirpdboy/luci-app-timecontrol" "main" "name"
 fi
 
 #UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
