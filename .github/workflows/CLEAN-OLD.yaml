@@ -10,12 +10,11 @@ jobs:
   clean-releases:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write       # 删除 Release 需要此权限
     steps:
       - name: Delete older releases, keep latest 4
         uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
-          keep_latest: 4           # 保留最新 4 个 Release（按创建时间排序）
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          # 可选：如果你想保留至少 1 个，但 keep_latest=4 已经保证至少保留 4 个
-          dry-run: true
+          keep_latest: 4    # 保留最新 4 个 Release（按创建时间排序）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # ✅ 必须通过 env 传递
