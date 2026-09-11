@@ -13,8 +13,9 @@ jobs:
       contents: write
     steps:
       - name: Delete older releases, keep latest 4
-        uses: dev-drprasad/delete-older-releases@v0.3
+        uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
           keep_latest: 4           # 保留最新 4 个 Release（按创建时间排序）
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           # 可选：如果你想保留至少 1 个，但 keep_latest=4 已经保证至少保留 4 个
+          dry-run: true
