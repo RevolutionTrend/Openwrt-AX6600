@@ -1,7 +1,7 @@
 name: Keep 4 releases
 
 on:
-  schedule:
+  #schedule:
     #- cron: '0 0 * * *'
   workflow_dispatch:
 
