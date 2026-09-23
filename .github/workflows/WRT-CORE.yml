@@ -65,7 +65,7 @@ env:
 jobs:
   core:
     name: ${{inputs.WRT_SOURCE}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       cache_prefix: ${{steps.initialize-values.outputs.cache_prefix}}
       legacy_cache_prefix: ${{steps.initialize-values.outputs.legacy_cache_prefix}}
@@ -73,7 +73,7 @@ jobs:
       source_hash: ${{steps.clone-code.outputs.source_hash}}
     steps:
       - name: Checkout Projects
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Initialization Environment
         env:
@@ -165,7 +165,7 @@ jobs:
       - name: Restore Build Cache
         id: cache-restore
         if: ${{ !inputs.WRT_TEST }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           # 缓存内容（ccache/宿主工具/工具链）与 profile 无关，PURE 和 PLUS 共享同一份，避免缓存翻倍挤占配额
           key: ${{env.WRT_CACHE_KEY}}
@@ -255,10 +255,19 @@ jobs:
             echo "current=false" >> "$GITHUB_OUTPUT"
             echo "skip cache save: source branch is now ${REMOTE_HASH:-unknown}, built $WRT_HASH"
           fi
+          # 缓存 key 已存在（如源码 commit 未变化、或上轮构建已保存同 key）时跳过保存，
+          # 避免 actions/cache/save 报 "Cache save failed" 告警
+          if gh cache list --repo "$GITHUB_REPOSITORY" --key "$WRT_CACHE_KEY" --ref "$GITHUB_REF" --limit 100 --json key --jq '.[].key' | grep -Fqx "$WRT_CACHE_KEY"; then
+            echo "cache_exists=true" >> "$GITHUB_OUTPUT"
+            echo "skip cache save: cache key $WRT_CACHE_KEY already exists"
+          else
+            echo "cache_exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Save Build Cache
-        if: ${{ !inputs.WRT_TEST && success() && steps.cache-source.outputs.current == 'true' }}
-        uses: actions/cache/save@v4
+        # PURE 与 PLUS 共用同一份 profile 无关缓存，只由 PURE 落盘，避免并发保存同 key 的竞态
+        if: ${{ !inputs.WRT_TEST && success() && env.WRT_PROFILE == 'PURE' && steps.cache-source.outputs.current == 'true' && steps.cache-source.outputs.cache_exists == 'false' }}
+        uses: actions/cache/save@v6
         with:
           key: ${{env.WRT_CACHE_KEY}}
           path: |
@@ -326,7 +335,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Release Firmware
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.WRT_CONFIG }}-${{ env.WRT_PROFILE }}-${{ env.WRT_INFO }}-${{ env.WRT_BRANCH }}-${{ env.WRT_DATE }}
           files: ./wrt/upload/*.*
@@ -402,7 +411,7 @@ jobs:
     name: Roll cache generations
     needs: core
     if: ${{ !inputs.WRT_TEST && needs.core.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: wrt-cache-rollover-${{inputs.WRT_SOURCE}}-${{inputs.WRT_BRANCH}}
       cancel-in-progress: false
