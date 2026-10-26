@@ -2,19 +2,45 @@ name: Clean up old releases
 
 on:
   schedule:
-    - cron: '0 20 * * *'   # 每天 UTC 0 点
+    - cron: '0 20 * * *'   # 每天 20:00（Asia/Shanghai）
       timezone: "Asia/Shanghai"
   workflow_dispatch:
 
 jobs:
   clean-releases:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # 固定版本，避免 ubuntu-latest 迁移到 Ubuntu 26 的公告
     permissions:
       contents: write       # 删除 Release 需要此权限
     steps:
-      - name: Delete older releases, keep latest 4
-        uses: dev-drprasad/delete-older-releases@v0.3.4
-        with:
-          keep_latest: 4    # 保留最新 4 个 Release（按创建时间排序）
+      # 用 runner 自带的 gh CLI 替代 dev-drprasad/delete-older-releases@v0.3.4
+      # （该 action 的 action.yml 声明 runs.using: node20，已被 GitHub 弃用，且无更新版本）
+      - name: Delete older releases & tags, keep latest 4
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # ✅ 必须通过 env 传递
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # gh 读取 GH_TOKEN（也可用 GITHUB_TOKEN）
+        run: |
+          set -euo pipefail
+
+          # 1) 列出已发布的 Release（跳过草稿），按发布时间升序排序
+          gh release list --limit 1000 --json tagName,publishedAt \
+            --jq '.[] | select(.publishedAt != null) | [.publishedAt, .tagName] | @tsv' \
+            | sort > /tmp/releases.tsv
+
+          # 2) 最新 4 个 Release 的 tag 即需要保留的 tag
+          kept_tags="$(tail -n 4 /tmp/releases.tsv | cut -f2-)"
+
+          # 3) 删除最新 4 个以外的 Release
+          head -n -4 /tmp/releases.tsv \
+            | while IFS=$'\t' read -r date tag; do
+                echo "Deleting old release: $tag (published $date)"
+                gh release delete "$tag" --yes
+              done
+
+          # 4) 清理所有不在保留列表内的 git tag（含历史遗留的孤立 tag），与 release 保持一致
+          gh api --paginate "repos/{owner}/{repo}/tags?per_page=100" --jq '.[].name' \
+            | while IFS= read -r tag; do
+                if ! printf '%s\n' "$kept_tags" | grep -Fxq -- "$tag"; then
+                  echo "Deleting git tag: $tag"
+                  encoded="$(printf '%s' "$tag" | jq -sRr @uri)"
+                  gh api -X DELETE "repos/{owner}/{repo}/git/refs/tags/$encoded" >/dev/null
+                fi
+              done
