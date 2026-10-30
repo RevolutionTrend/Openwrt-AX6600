@@ -17,12 +17,13 @@ jobs:
       - name: Delete older releases & tags, keep latest 4
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # gh 读取 GH_TOKEN（也可用 GITHUB_TOKEN）
+          GH_REPO: ${{ github.repository }}       # 无 checkout 时 gh 无法从 git remote 推断仓库，必须显式指定 owner/repo
         run: |
           set -euo pipefail
 
           # 1) 列出已发布的 Release（跳过草稿），按发布时间升序排序
-          gh release list --limit 1000 --json tagName,publishedAt \
-            --jq '.[] | select(.publishedAt != null) | [.publishedAt, .tagName] | @tsv' \
+          gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq '.[] | select(.published_at != null) | [.published_at, .tag_name] | @tsv' \
             | sort > /tmp/releases.tsv
 
           # 2) 最新 4 个 Release 的 tag 即需要保留的 tag
@@ -36,11 +37,11 @@ jobs:
               done
 
           # 4) 清理所有不在保留列表内的 git tag（含历史遗留的孤立 tag），与 release 保持一致
-          gh api --paginate "repos/{owner}/{repo}/tags?per_page=100" --jq '.[].name' \
+          gh api --paginate "repos/$GH_REPO/tags?per_page=100" --jq '.[].name' \
             | while IFS= read -r tag; do
                 if ! printf '%s\n' "$kept_tags" | grep -Fxq -- "$tag"; then
                   echo "Deleting git tag: $tag"
                   encoded="$(printf '%s' "$tag" | jq -sRr @uri)"
-                  gh api -X DELETE "repos/{owner}/{repo}/git/refs/tags/$encoded" >/dev/null
+                  gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$encoded" >/dev/null
                 fi
               done
