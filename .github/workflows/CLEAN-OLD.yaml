@@ -1,9 +1,9 @@
 name: Clean up old releases
 
 on:
-  schedule:
-    - cron: '0 20 * * *'   # 每天 20:00（Asia/Shanghai）
-      timezone: "Asia/Shanghai"
+  #schedule:  # 定时触发已禁用（保留手动/其它触发）
+    #- cron: '0 20 * * *'   # 每天 20:00（Asia/Shanghai）
+      #timezone: "Asia/Shanghai"
   workflow_dispatch:
 
 jobs:

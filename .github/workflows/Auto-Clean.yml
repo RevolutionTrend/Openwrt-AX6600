@@ -2,9 +2,9 @@ name: Auto-Clean
 
 on:
   #自动清理：每天早上6点
-  schedule:
-    - cron: '0 1 * * *'
-      timezone: "Asia/Shanghai"
+  #schedule:  # 定时触发已禁用（保留手动/其它触发）
+    #- cron: '0 1 * * *'
+      #timezone: "Asia/Shanghai"
   #手动清理
   workflow_dispatch:
 
